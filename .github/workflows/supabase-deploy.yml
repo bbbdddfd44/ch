@@ -59,7 +59,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          for fn in access-admin access-agency access-auth access-wallet svp-auth svp-proxy takamol-proxy test-center-owner; do
+          for fn in access-admin access-agency access-auth access-wallet svp-auth svp-proxy takamol-proxy svp-registration test-center-owner; do
             echo "── Deploying $fn ──"
             supabase functions deploy "$fn" --project-ref "${{ secrets.SUPABASE_PROJECT_ID }}"
           done

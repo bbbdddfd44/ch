@@ -37,7 +37,8 @@ Return this exact schema:
   "country_code": "2-letter ISO code, uppercase (BD, SA, IN, PK, EG, ...)",
   "issuing_country": "country name in UPPERCASE English (BANGLADESH, SAUDI ARABIA, ...)",
   "portrait_box": [100, 100, 700, 450],
-  "confidence": "high | medium | low (your own honest self-rating of the extraction quality)"
+  "confidence": "high | medium | low (your own honest self-rating of the extraction quality)",
+  "mrz_present": true
 }
 
 Rules:
@@ -45,6 +46,7 @@ Rules:
 - Dates in the MRZ are YYMMDD; convert them to YYYY-MM-DD. For birth dates, if the 2-digit year is >= current YY, treat it as 19YY; otherwise 20YY. For expiration dates, always treat as 20YY.
 - "SEX" field in the MRZ is M or F -- convert to "male" or "female".
 - Extract national_id only from a separate identifier visibly printed on this passport. Never use another document and never copy the passport number into national_id.
+- Set mrz_present to true only when the two machine-readable-zone lines are visibly present on this single biodata/photo page. A personal-data page, portrait-only image, cropped upper page, or combined multi-page document must be false.
 - portrait_box must be an array of four integers in [ymin, xmin, ymax, xmax] order, normalized from 0 to 1000. It must tightly contain the printed holder portrait/photo, not the full passport page. Return [] when no portrait is visible.
 - Do NOT return markdown or code fences. Return the JSON object and nothing else.`;
 
@@ -61,6 +63,7 @@ const EMPTY_RESULT = Object.freeze({
   issuing_country: '',
   portrait_box: [],
   confidence: 'low',
+  mrz_present: false,
   raw: '',
 });
 
@@ -112,6 +115,8 @@ export function coercePassportData(data) {
     const out = String(v).trim();
     return upper ? out.toUpperCase() : out;
   };
+  const mrzValue = data?.mrz_present;
+  const mrzPresent = mrzValue === true || ['true', 'yes', 'present'].includes(String(mrzValue || '').trim().toLowerCase());
   const out = {
     passport_number: s('passport_number', true).replace(/\s+/g, ''),
     first_name: s('first_name', true),
@@ -125,6 +130,7 @@ export function coercePassportData(data) {
     issuing_country: s('issuing_country', true),
     portrait_box: normalizePortraitBox(data?.portrait_box),
     confidence: s('confidence').toLowerCase() || 'low',
+    mrz_present: mrzPresent,
   };
   const isoDate = /^\d{4}-\d{2}-\d{2}$/;
   if (!isoDate.test(out.date_of_birth)) out.date_of_birth = '';

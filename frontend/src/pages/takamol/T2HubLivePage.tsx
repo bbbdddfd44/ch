@@ -144,7 +144,7 @@ export default function T2HubLivePage() {
   const [loadingOccupations, setLoadingOccupations] = useState(true);
 
   useEffect(() => {
-    api("/t2hub/occupations").then((data) => {
+    api("/booking-data/occupations?per_page=1000").then((data) => {
       const occs = data?.occupations || (Array.isArray(data) ? data : []);
       setAllOccupations(occs);
       if (occs.length > 0 && categoryId === "") setCategoryId(occs[0].id || "");
@@ -154,7 +154,7 @@ export default function T2HubLivePage() {
   useEffect(() => {
     if (!categoryId) return;
     setLoading(true); setError(null);
-    api(`/t2hub/exam-available-dates?category_id=${categoryId}&city=${encodeURIComponent(division)}`)
+    api(`/booking-data/exam-available-dates?category_id=${categoryId}&city=${encodeURIComponent(division)}`)
       .then((data) => { setResult({ type: "available-dates", data }); setRawJson(JSON.stringify(data, null, 2)); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -174,7 +174,7 @@ export default function T2HubLivePage() {
   const fetchTestCenters = useCallback(async () => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/test-centers?city=${encodeURIComponent(division)}`);
+      const data = await api(`/booking-data/test-centers?city=${encodeURIComponent(division)}`);
       setResult({ type: "test-centers", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }
@@ -184,7 +184,7 @@ export default function T2HubLivePage() {
   const fetchPaccSessions = useCallback(async () => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/pacc-exam-sessions?category_id=${categoryId}&city=${encodeURIComponent(division)}&exam_date=${examDate}`);
+      const data = await api(`/booking-data/pacc-exam-sessions?category_id=${categoryId}&city=${encodeURIComponent(division)}&exam_date=${examDate}`);
       setResult({ type: "pacc-sessions", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }
@@ -194,7 +194,7 @@ export default function T2HubLivePage() {
   const fetchPaccSessionsForDate = useCallback(async (date: string) => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/pacc-exam-sessions?category_id=${categoryId}&city=${encodeURIComponent(division)}&exam_date=${date}`);
+      const data = await api(`/booking-data/pacc-exam-sessions?category_id=${categoryId}&city=${encodeURIComponent(division)}&exam_date=${date}`);
       setResult({ type: "pacc-sessions", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }
@@ -204,7 +204,7 @@ export default function T2HubLivePage() {
   const fetchAvailableDates = useCallback(async () => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/exam-available-dates?category_id=${categoryId}&city=${encodeURIComponent(division)}`);
+      const data = await api(`/booking-data/exam-available-dates?category_id=${categoryId}&city=${encodeURIComponent(division)}`);
       setResult({ type: "available-dates", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }
@@ -214,7 +214,7 @@ export default function T2HubLivePage() {
   const fetchOccupations = useCallback(async () => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/occupations`);
+      const data = await api(`/booking-data/occupations?per_page=1000`);
       setResult({ type: "occupations", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }
@@ -224,7 +224,7 @@ export default function T2HubLivePage() {
   const fetchSessionStatus = useCallback(async () => {
     setLoading(true); setError(null); setResult(null); setRawJson(null);
     try {
-      const data = await api(`/t2hub/session-status`);
+      const data = await api(`/booking-data/session-status`);
       setResult({ type: "session-status", data });
       setRawJson(JSON.stringify(data, null, 2));
     } catch (e: any) { setError(e.message); }

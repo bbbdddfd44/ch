@@ -4,7 +4,7 @@ function getBase() {
   return SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : "";
 }
 
-function getAccessToken(): string | null {
+export function getAccessToken(): string | null {
   return localStorage.getItem("access_token");
 }
 

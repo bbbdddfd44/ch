@@ -1,10 +1,6 @@
-// Passport auto-fill client.
-//
-// Passport OCR is exposed by the Railway backend. An explicit URL still wins,
-// which is useful for isolated testing and alternate deployments.
-//
-// For non-preview deployments, set VITE_PASSPORT_SCAN_URL to an absolute URL
-// (e.g. "https://your-fastapi.example.com/api/passport-scan").
+// Passport auto-fill client backed by the Supabase svp-registration function.
+
+import { getAccessToken } from "./access-api";
 
 export interface PassportScanData {
   passport_number: string;
@@ -13,12 +9,22 @@ export interface PassportScanData {
   date_of_birth: string;             // ISO YYYY-MM-DD (fits <input type="date"> directly)
   passport_expiration_date: string;  // ISO YYYY-MM-DD
   national_id: string;               // Separate holder ID printed on the passport, when present
+  personal_number?: string;
+  personal_id?: string;
+  holder_id?: string;
+  optional_data?: string;
+  mrz_optional_data?: string;
+  optional?: string;
+  mrz_text?: string;
+  raw_mrz?: string;
+  raw_text?: string;
   sex: "male" | "female" | "";
   nationality_code: string;          // 3-letter ISO ("BGD")
   country_code: string;              // 2-letter ISO ("BD")
   issuing_country: string;           // e.g. "BANGLADESH"
   portrait_box: number[];            // [ymin, xmin, ymax, xmax], normalized 0..1000
   confidence: "high" | "medium" | "low";
+  mrz_present: boolean;              // both MRZ lines were visible on the biodata page
   raw?: string;
 }
 
@@ -28,14 +34,18 @@ export interface PassportScanResponse {
 }
 
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"] as const;
-const DEFAULT_RAILWAY_URL = "https://choyes-production.up.railway.app";
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 
 function resolveScanUrl(): string {
-  const override = import.meta.env.VITE_PASSPORT_SCAN_URL as string | undefined;
-  if (override && override.trim()) return override.replace(/\/$/, "");
-  const backend = import.meta.env.VITE_BACKEND_URL as string | undefined;
-  if (backend && backend.trim()) return `${backend.replace(/\/$/, "")}/api/passport-scan`;
-  return `${DEFAULT_RAILWAY_URL}/api/passport-scan`;
+  if (!SUPABASE_URL) throw new Error("VITE_SUPABASE_URL is not configured");
+  return `${SUPABASE_URL}/functions/v1/svp-registration/ocr-scan`;
+}
+
+function normalizeDateInput(value: unknown): string {
+  const text = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : "";
 }
 
 export function isSupportedPassportImage(file: File): boolean {
@@ -87,27 +97,43 @@ export async function cropPassportPortrait(file: File, portraitBox: readonly num
 
 export async function scanPassport(file: File): Promise<PassportScanData> {
   if (!isSupportedPassportImage(file)) {
-    throw new Error("Please upload a JPEG, PNG or WEBP passport photo for auto-fill (PDF not supported).");
+    throw new Error("Upload one JPEG, PNG or WEBP image of the passport biodata page. Do not upload a PDF, personal-data page, or combined document.");
   }
   const form = new FormData();
   form.append("file", file);
+  const token = getAccessToken();
+  if (!token) throw new Error("Sign in before scanning a passport.");
+  const idempotencyKey = crypto.randomUUID();
 
   let res: Response;
   try {
-    res = await fetch(resolveScanUrl(), { method: "POST", body: form });
+    res = await fetch(resolveScanUrl(), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+      body: form,
+    });
   } catch {
     throw new Error("Passport auto-fill service could not be reached. Please try again or enter the details manually.");
   }
   const text = await res.text();
-  let body: (Partial<PassportScanResponse> & { detail?: unknown; message?: unknown }) | null;
+  let body: (Partial<PassportScanResponse> & { detail?: unknown; message?: unknown; error?: unknown }) | null;
   try { body = text ? JSON.parse(text) : null; } catch { body = null; }
 
   if (!res.ok) {
-    const message = body?.detail || body?.message || `Passport auto-fill service is unavailable (HTTP ${res.status}).`;
+    const message = body?.detail || body?.message || body?.error || `Passport auto-fill service is unavailable (HTTP ${res.status}).`;
     throw new Error(String(message));
   }
-  if (!body?.ok || !body?.data) {
+  const data = body?.data?.ocr || body?.data;
+  if (!body?.ok || !data) {
     throw new Error("Passport scan returned an unexpected response.");
   }
-  return body.data;
+  const scan = {
+    ...(data as PassportScanData),
+    date_of_birth: normalizeDateInput((data as PassportScanData).date_of_birth),
+    passport_expiration_date: normalizeDateInput((data as PassportScanData).passport_expiration_date),
+  };
+  if (scan.mrz_present !== true) {
+    throw new Error("Invalid passport MRZ. Upload a clear single biodata page showing both MRZ lines at the bottom; do not upload the personal-data page or a combined document.");
+  }
+  return scan;
 }

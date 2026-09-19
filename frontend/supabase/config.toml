@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.takamol-proxy]
 verify_jwt = false
 
+[functions.svp-registration]
+verify_jwt = false
+
 [functions.svp-auth]
 verify_jwt = false
 

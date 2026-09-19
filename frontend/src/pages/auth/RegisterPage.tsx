@@ -168,8 +168,8 @@ export default function RegisterPage() {
     setPassportFile(file);
     if (!file) { setScanStatus("idle"); setScanMessage(""); return; }
     if (!isSupportedPassportImage(file)) {
-      // PDFs etc. are still accepted as the upload itself, just skip auto-fill for them.
-      setScanStatus("idle"); setScanMessage("Auto-fill only works with JPEG/PNG/WEBP photos — you can still upload this file and fill the fields manually.");
+      setPassportFile(null);
+      setScanStatus("error"); setScanMessage("Use one JPEG, PNG or WEBP image of the passport biodata page with both MRZ lines. PDFs and combined personal-data documents are not accepted.");
       return;
     }
     setScanStatus("scanning"); setScanMessage("Reading passport…");
@@ -235,7 +235,15 @@ export default function RegisterPage() {
     // multipart part.  Sending an empty part (as in the captured request)
     // produces an opaque upstream validation error, so stop it locally.
     if (!passportFile || passportFile.size === 0) {
-      setMessage("Upload a non-empty passport document before validating your identity.");
+      setMessage("Upload one non-empty passport biodata-page image showing both MRZ lines before validating your identity.");
+      return;
+    }
+    if (!isSupportedPassportImage(passportFile)) {
+      setMessage("SVP requires a single JPEG, PNG or WEBP passport biodata page with the two MRZ lines. Do not upload a PDF, personal-data page, or combined document.");
+      return;
+    }
+    if (scanStatus !== "done") {
+      setMessage("Scan the single passport biodata page successfully before validating. The two MRZ lines must be visible.");
       return;
     }
     setLoading(true); setMessage("Validating identity with live SVP…");
@@ -278,7 +286,7 @@ export default function RegisterPage() {
       <label>Date of birth<input required type="date" value={form.date_of_birth} onChange={(e)=>update("date_of_birth",e.target.value)}/></label><label>Sex<select value={form.sex} onChange={(e)=>update("sex",e.target.value)}><option value="male">Male</option><option value="female">Female</option></select></label>
       <label>Passport number<input required value={form.passport_number} onChange={(e)=>update("passport_number",e.target.value)}/></label><label>Passport expiration<input required type="date" value={form.passport_expiration_date} onChange={(e)=>update("passport_expiration_date",e.target.value)}/></label>
       <label>National ID / Personal number<input required value={form.national_id} onChange={(e)=>update("national_id",e.target.value)} placeholder="Auto-filled only from this passport"/><small>Passport source only. No separate NID document is scanned.</small></label>
-      <label>Passport document<input required type="file" accept="image/*,.pdf" onChange={(e)=>handlePassportFile(e.target.files?.[0]||null)}/><small>Required. Upload a clear, non-empty passport info page — passport fields, its printed National ID, and profile face will auto-fill.</small></label><label>Profile image{profilePreview && <img style={{display:"block",width:112,height:132,margin:"8px 0 10px",borderRadius:12,objectFit:"cover"}} src={profilePreview} alt="Profile preview"/>}<input type="file" accept="image/*" onChange={(e)=>handleProfileFile(e.target.files?.[0]||null)}/><small>{profileMessage || "Your face will be cropped from the passport automatically when detected; you can replace it here."}</small></label>
+      <label>Passport biodata / MRZ page<input required type="file" accept="image/jpeg,image/png,image/webp" onChange={(e)=>handlePassportFile(e.target.files?.[0]||null)}/><small>Required: upload only one clear image of the passport biodata/photo page with both MRZ lines visible at the bottom. Do not upload the personal-data page, a PDF, or a combined document.</small></label><label>Profile image{profilePreview && <img style={{display:"block",width:112,height:132,margin:"8px 0 10px",borderRadius:12,objectFit:"cover"}} src={profilePreview} alt="Profile preview"/>}<input type="file" accept="image/*" onChange={(e)=>handleProfileFile(e.target.files?.[0]||null)}/><small>{profileMessage || "Your face will be cropped from the passport automatically when detected; you can replace it here."}</small></label>
       {scanStatus!=="idle" && <div className={`rg-wide rg-scan-status rg-scan-${scanStatus}`}>{scanStatus==="scanning"?"⏳ ":scanStatus==="done"?"✓ ":scanStatus==="error"?"⚠ ":""}{scanMessage}</div>}
     </div><button disabled={loading}>{loading?"Validating…":"Validate and continue"}</button></form>}
     {step===2 && <form onSubmit={register} className="rg-form"><h2>Account & professional details</h2><div className="rg-grid">

@@ -1037,7 +1037,10 @@ Deno.serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  const path = url.pathname.replace(/^\/svp-proxy/, "");
+  const rawPath = url.pathname.replace(/^\/svp-proxy/, "");
+  // Keep provider-specific naming out of the browser-facing API contract.
+  // The internal handlers still use the existing upstream integration paths.
+  const path = rawPath.replace(/^\/booking-data(?=\/|$)/, "/t2hub");
   const query = url.search.replace(/^\?/, "");
 
   try {
@@ -1066,7 +1069,11 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "GET" && path === "/t2hub/occupations") {
-      return json(await t2hubFetch(t2hubQuery("/pacc/occupations", new URLSearchParams(query)), req));
+      const params = new URLSearchParams(query);
+      // The upstream currently returns 250 records (count === total), but use
+      // a high internal page size so future catalog growth is loaded in full.
+      params.set("per_page", "10000");
+      return json(await t2hubFetch(t2hubQuery("/pacc/occupations", params), req));
     }
 
     if (req.method === "GET" && path === "/t2hub/exam-available-dates") {

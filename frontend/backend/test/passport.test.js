@@ -32,3 +32,10 @@ test('rejects invalid portrait bounds without inventing a National ID', () => {
   assert.equal(result.national_id, '');
   assert.deepEqual(result.portrait_box, []);
 });
+
+test('requires an explicitly detected MRZ on the biodata page', () => {
+  assert.equal(coercePassportData({ mrz_present: true }).mrz_present, true);
+  assert.equal(coercePassportData({ mrz_present: 'yes' }).mrz_present, true);
+  assert.equal(coercePassportData({ mrz_present: false }).mrz_present, false);
+  assert.equal(coercePassportData({ passport_number: 'AB123' }).mrz_present, false);
+});
